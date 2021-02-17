@@ -6,46 +6,42 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <dirent.h>
-#include <ftw.h>
 
-int print_prompt() {
+int print_prompt() {  // Prints the prompt for the user.
 	printf("@> ");
 	return 1;
 }
 
-int get_command(char *command) {	
-
+int get_command(char *command) {  // Reads in the input from the user or a file.	
 	if(fgets(command, 4096, stdin) != NULL) {
 		int len = strlen(command);
 		
 		if(command[len-1] != '\n') {
 			//fprintf(stderr, "command too long\n");
-
 		}
-
 		command[strcspn(command, "\n")] = 0;
 		return 1;
 	}
-	else {
-		exit(0);
+	else {	
+		exit(0); // Exit if EOF.
 	}
 }
 
-int deleteNonEmptyDirectory(const char *path) {
+int deleteNonEmptyDirectory(const char *path) { // Recursively traverse through the path to remove a non empty directory.
 	DIR *dir = opendir(path);
 	size_t pathLength = strlen(path);
 	int r = -1;
 
 	if(dir) {
 		struct dirent *d;
-
 		r = 0;
+
 		while(!r && (d = readdir(dir))) {
 			int r2 = -1;
 			char *buf;
 			size_t length;
 
-			if(!strcmp(d->d_name, ".") || !strcmp(d->d_name, "..")) {
+			if(!strcmp(d->d_name, ".") || !strcmp(d->d_name, "..")) {  // Ignore these in the directory.
 				continue;
 			}
 
@@ -76,29 +72,40 @@ int deleteNonEmptyDirectory(const char *path) {
 	return r;
 }
 
-int process_command(char* command) {
+int process_command(char* command) { // Applies logic to the command read in by get_command().
 	char cwd[256];
 	const char delim[2] = " ";
 	char* token;
 	char cpy[4096];
+	char cpy2[4096];
+	char hist[4096];
+	char histcpy[4096];
 
 	strcpy(cpy, command);
 
+	strcpy(cpy2, command);
+	strcat(cpy2, "&");
+	
+	strcat(hist, cpy2);
+	strcpy(histcpy, hist);
+	
+
 	token = strtok(command, delim);
 
-	if(strcmp(command, "exit") ==0) {
+	if(strcmp(command, "exit") ==0) { // If command is "exit" then exit the program.
 		exit(0);
 	}
 
-	else if(strcmp(command, "author") ==0){
+	else if(strcmp(command, "author") ==0){  // If command is "author" then output the author's info.
 		printf("Name:  Tyler LaBreck\n");
 	}
 
-	else if(strcmp(command, "cdir") == 0) {
+	else if(strcmp(command, "cdir") == 0) {  // If command is "cdir" then output current directory.
+
 		int count = 0;
 
 		while(token != NULL) {
-			if (strcmp(token, "cdir") != 0) {
+			if (strcmp(token, "cdir") != 0) {  
 				if(chdir(token) != 0) {
 					perror("cdir");
 				}
@@ -116,12 +123,14 @@ int process_command(char* command) {
 		}
 	}
 
-	else if(strcmp(command, "create") == 0) {
+	else if(strcmp(command, "create") == 0) {  // If command is "create" then create a file or directory.
+		
+
 		int count = 0;
 		struct stat statbuf;
 
 		while(token != NULL) {	
-			if(strcmp(token, "-d") == 0) {
+			if(strcmp(token, "-d") == 0) { 
 				while(token != NULL) {
 					if(strcmp(token, "-d") != 0) {
 						if(mkdir(token, 0777) != 0) {
@@ -159,7 +168,9 @@ int process_command(char* command) {
 		}	
 	}
 
-	else if(strcmp(command, "delete") == 0) {
+	else if(strcmp(command, "delete") == 0) {  // If command is "delete" then delete a file or directory.
+		
+
 		int count = 0;
 		struct stat statbuf;
 
@@ -192,7 +203,9 @@ int process_command(char* command) {
 		}
 	}
 
-	else if(strcmp(command, "list") == 0) {
+	else if(strcmp(command, "list") == 0) {  // If command is "list" then list the contents of the current file system.
+		
+
 		struct dirent *d;
 		
 		DIR *dir = opendir(".");
@@ -201,13 +214,39 @@ int process_command(char* command) {
 			perror("list");
 			return 0;
 		}
+
 		while((d = readdir(dir)) != NULL) {
 			printf("%s\n", d->d_name);
 		}
 		closedir(dir);
 	}
 
-	else {
+	else if(strcmp(command, "hist") == 0) {  // If command is "hist" then show the history of commands executed by the shell.
+		int histCount = 0;
+
+		while(token != NULL) {
+			if(strcmp(token, "-c") == 0) {
+				hist[0] = '\0';
+				histcpy[0] = '\0';
+				histCount++;
+			}
+			token = strtok(NULL, delim);
+		}
+		
+		char *token2;
+		const char delim2[2] = "&";
+
+		if(histCount == 0) {
+			token2 = strtok(hist, delim2);
+
+			while(token2 != NULL) {
+				printf("%s\n", token2);
+				token2 = strtok(NULL, delim2);
+			}
+		}
+	}
+
+	else {  // If the command is not in our list of commands then show following message.
 		printf("Unrecognized command:");
 		while(token != NULL) {
 			printf(" %s", token);
