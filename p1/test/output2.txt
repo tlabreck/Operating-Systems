@@ -1,0 +1,15 @@
+ create -d test_dir_01
+ cdir test_dir_01
+ create test_file_01.txt
+ create test_file_02.txt
+ delete test_file_01.txt
+ cdir ..
+ hist
+Unrecognized command: hist
+ create test_file_03.txt
+ hist -c
+Unrecognized command: hist -c
+ delete -d test_dir_01
+ hist
+Unrecognized command: hist
+ 
