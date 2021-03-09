@@ -1,98 +1,281 @@
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <sys/param.h>
 #include <unistd.h>
+#include <stdbool.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <dirent.h>
 
-#define MAX_LINE 4095
-#define LINE_BUFFER MAX_LINE + 3
-
-typedef struct {
-  int argc;
-  char **argv;
-  char *str; // to store the command line in the implementation of the hist command
-} command_t;
-
-typedef struct {
-  char *name;
-  int (*function)(int argc,char *argv[]);
-} cmd_entry;
-
-int cmd_author(int argc, char *argv[]) {
-  printf("Name: Jorge Fandinno\n");
-  return 0;
+int print_prompt() {  // Prints the prompt for the user.
+	printf("@> ");
+	return 1;
 }
 
-int cmd_exit(int argc, char *argv[]) {
-  exit(0);
+int get_command(char *command) {  // Reads in the input from the user or a file.	
+	if(fgets(command, 4096, stdin) != NULL) {
+		int len = strlen(command);
+		
+		if(command[len-1] != '\n') {
+			//fprintf(stderr, "command too long\n");
+		}
+		command[strcspn(command, "\n")] = 0;
+		return 1;
+	}
+	else {	
+		exit(0); // Exit if EOF.
+	}
 }
 
-int cmd_cdir(int argc, char *argv[]) {
-  char path[MAXPATHLEN];
-  if (argc==1) {
-    if (getcwd(path, MAXPATHLEN) == NULL) perror("cdir");
-    else printf("%s\n",path);
-    return 0;
-  }
-  if (chdir(argv[1])==-1) perror("cdir");
-  return 0;
+int deleteNonEmptyDirectory(const char *path) { // Recursively traverse through the path to remove a non empty directory.
+	DIR *dir = opendir(path);
+	size_t pathLength = strlen(path);
+	int r = -1;
+
+	if(dir) {
+		struct dirent *d;
+		r = 0;
+
+		while(!r && (d = readdir(dir))) {
+			int r2 = -1;
+			char *buf;
+			size_t length;
+
+			if(!strcmp(d->d_name, ".") || !strcmp(d->d_name, "..")) {  // Ignore these in the directory.
+				continue;
+			}
+
+			length = pathLength + strlen(d->d_name) + 2;
+			buf = malloc(length);
+
+			if(buf) {
+				struct stat statbuf;
+
+				snprintf(buf, length, "%s/%s", path, d->d_name);
+				if(!stat(buf, &statbuf)) {
+					if(S_ISDIR(statbuf.st_mode)) {
+						r2 = deleteNonEmptyDirectory(buf);
+					}
+					else {
+						r2 = unlink(buf);
+					}
+				}
+				free(buf);
+			}
+			r = r2;
+		}
+		closedir(dir);
+	}
+	if(!r) {
+		r = rmdir(path);
+	}
+	return r;
 }
 
-cmd_entry cmd_table[] = {
-  {"author",cmd_author},
-  {"exit",cmd_exit},
-  {"cdir",cmd_cdir},
-  {NULL,NULL}
-};
+int process_command(char* command) { // Applies logic to the command read in by get_command().
+	char cwd[256];
+	const char delim[2] = " ";
+	char* token;
+	char cpy[4096];
+	char cpy2[4096];
+	char hist[4096];
+	char histcpy[4096];
 
-int parse_args(char *line, char ***p_argv) {
-  int argc=0;
-  char **argv = *p_argv;
-  for (argc=0, argv[argc]=strtok(line," \t\n"); argv[argc]!=NULL && argc < _POSIX_ARG_MAX; argv[++argc]=strtok(NULL," \t\n"));
-  return argc;
+	strcpy(cpy, command);
+
+	strcpy(cpy2, command);
+	strcat(cpy2, "&");
+	
+	strcat(hist, cpy2);
+	strcpy(histcpy, hist);
+	
+
+	token = strtok(command, delim);
+
+	if(strcmp(command, "exit") ==0) { // If command is "exit" then exit the program.
+		exit(0);
+	}
+
+	else if(strcmp(command, "author") ==0){  // If command is "author" then output the author's info.
+		printf("Name:  Tyler LaBreck\n");
+	}
+
+	else if(strcmp(command, "cdir") == 0) {  // If command is "cdir" then output current directory.
+
+		int count = 0;
+
+		while(token != NULL) {
+			if (strcmp(token, "cdir") != 0) {  
+				if(chdir(token) != 0) {
+					perror("cdir");
+				}
+			}
+			token = strtok(NULL, delim);
+			count++;
+		}
+		if (count == 1) {
+			if(getcwd(cwd, sizeof(cwd)) == NULL) {
+				perror("cdir: No such file or directory");		
+			}
+			else {
+				printf("%s\n", cwd);
+			}
+		}
+	}
+
+	else if(strcmp(command, "create") == 0) {  // If command is "create" then create a file or directory.
+		
+
+		int count = 0;
+		struct stat statbuf;
+
+		while(token != NULL) {	
+			if(strcmp(token, "-d") == 0) { 
+				while(token != NULL) {
+					if(strcmp(token, "-d") != 0) {
+						if(mkdir(token, 0777) != 0) {
+							perror("create");
+						}
+					}
+					token = strtok(NULL, delim);
+					count++;
+				}
+				if(count == 2) {
+					fprintf(stderr, "Usage: create [-d] name\n");
+				}	
+			}
+			token = strtok(NULL, delim);
+			count++;	
+		}
+		if(count == 2) {
+			token = strtok(cpy, delim);
+			while(token != NULL) {
+				if(strcmp(token, "create") != 0) {
+					if(stat(token, &statbuf) == 0) {
+						fprintf(stderr, "create: File exists\n");
+					}
+					else {
+						FILE *fp;
+						fp = fopen(token, "w+");
+						fclose(fp);
+					}					
+				}
+				token = strtok(NULL, delim);
+			}	
+		}
+		if(count == 1 || count > 4) {
+			fprintf(stderr, "usage: create [-d] name\n");
+		}	
+	}
+
+	else if(strcmp(command, "delete") == 0) {  // If command is "delete" then delete a file or directory.
+		
+
+		int count = 0;
+		struct stat statbuf;
+
+		while(token != NULL) {
+			if(strcmp(token, "-r") == 0) {			
+				while(token != NULL) {
+					if(strcmp(token, "-r") != 0) {
+						deleteNonEmptyDirectory(token);
+					}
+					token = strtok(NULL, delim);
+				}
+			}
+			else if((stat(token, &statbuf) == 0) && strcmp(token, "delete") != 0) {
+				if(S_ISDIR(statbuf.st_mode) != 0) {
+					if(rmdir(token) != 0) {
+						perror("delete");
+					}
+				}
+				else {
+					if(remove(token) != 0) {
+						perror("delete");
+					}
+				}				
+			}
+			token = strtok(NULL, delim);
+			count++;
+		}
+		if(count == 1) {
+			fprintf(stderr, "usage: delete [-r] name\n");
+		}
+	}
+
+	else if(strcmp(command, "list") == 0) {  // If command is "list" then list the contents of the current file system.
+		
+
+		struct dirent *d;
+		
+		DIR *dir = opendir(".");
+
+		if(dir == NULL) {
+			perror("list");
+			return 0;
+		}
+
+		while((d = readdir(dir)) != NULL) {
+			printf("%s\n", d->d_name);
+		}
+		closedir(dir);
+	}
+
+	else if(strcmp(command, "hist") == 0) {  // If command is "hist" then show the history of commands executed by the shell.
+		int histCount = 0;
+
+		while(token != NULL) {
+			if(strcmp(token, "-c") == 0) {
+				hist[0] = '\0';
+				histcpy[0] = '\0';
+				histCount++;
+			}
+			token = strtok(NULL, delim);
+		}
+		
+		char *token2;
+		const char delim2[2] = "&";
+
+		if(histCount == 0) {
+			token2 = strtok(hist, delim2);
+
+			while(token2 != NULL) {
+				printf("%s\n", token2);
+				token2 = strtok(NULL, delim2);
+			}
+		}
+	}
+
+	else {  // If the command is not in our list of commands then show following message.
+		printf("Unrecognized command:");
+		while(token != NULL) {
+			printf(" %s", token);
+
+			token = strtok(NULL, delim);
+		}
+		printf("\n");
+	}
+	return 1;
 }
 
-int get_command(command_t *cmd, int echo){
-  static char line_buffer[LINE_BUFFER];
-  clearerr(stdin);
-  if (fgets(line_buffer, LINE_BUFFER, stdin) == NULL){
-    if(ferror(stdin))perror("myshell");
-    else exit(0);
-  }
-  if (strnlen(line_buffer, LINE_BUFFER) > MAX_LINE + 1){ // MAX_LINE + 1 accounts for the end line character
-    fprintf(stderr, "command too long\n");
-    cmd->argc = -1;
-    return cmd->argc;
-  }
-  if(echo) printf("%s",line_buffer);
-  cmd->argc = parse_args(line_buffer, &cmd->argv);
-  return cmd->argc;
-}
-
-void process_command(command_t *command){
-  int i;
-  if(command->argc <= 0)
-    return;
-  for (i=0; ; i++) {
-    if (cmd_table[i].name == NULL) {
-      fprintf(stderr, "Unrecognized command: %s\n", command->argv[0]);
-      return;
-    }
-    if (!strcmp(command->argv[0], cmd_table[i].name)) {
-      cmd_table[i].function(command->argc, command->argv);
-      return;
-    }
-  }
-}
+char command[4096];
 
 int main(int argc, char *argv[]) {
-  int echo = argc > 1 && !strcmp(argv[1], "--echo");
-  static char *arg_buffer[_POSIX_ARG_MAX];
-  command_t command;
-  command.argv = arg_buffer;
-  while (1) {
-    printf("@> ");
-    get_command(&command, echo);
-    process_command(&command);
-  }
+	bool echo = false;
+
+	if(argc >= 2 && strcmp(argv[1], "--echo") == 0) {
+		echo = true;
+	}
+
+	while(1) {
+		print_prompt();
+		
+		get_command(command);
+
+		if(echo == true) {
+			printf("%s\n", command);
+		}
+
+		process_command(command);
+	}
 }
