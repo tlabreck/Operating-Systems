@@ -1,0 +1,2 @@
+echo 'Hello World!' > test/bash_output.txt
+echo 'ok' > ./test/myshell_wait_fifo

@@ -1,0 +1,8 @@
+total 28
+62784707 4 drwxr-xr-x 5 tlabreck domain users 4096 Mar 14 18:17 .
+58468407 4 drwxr-xr-x 6 tlabreck domain users 4096 Mar  9 17:19 ..
+62784739 4 drwxr-xr-x 2 tlabreck domain users 4096 Mar 14 18:07 bin
+62784741 4 -rw-r--r-- 1 tlabreck domain users  410 Mar  9 17:23 compile_test.sh
+62784708 4 -rw-r--r-- 1 tlabreck domain users  372 Mar  9 17:19 Makefile
+62784709 4 drwxr-xr-x 2 tlabreck domain users 4096 Mar 14 18:07 src
+62784712 4 drwxr-xr-x 2 tlabreck domain users 4096 Mar 14 18:17 test

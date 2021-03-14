@@ -6,6 +6,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <dirent.h>
+#include <fcntl.h>
+#include <sys/wait.h>
 
 int print_prompt() {  // Prints the prompt for the user.
 	printf("@> ");
@@ -100,7 +102,7 @@ int process_command(char* command) { // Applies logic to the command read in by 
 		printf("Name:  Tyler LaBreck\n");
 	}
 
-	else if(strcmp(command, "cdir") == 0) {  // If command is "cdir" then output current directory.
+	else if(strcmp(command, "cdir") == 0) {  // If command i:s "cdir" then output current directory.
 
 		int count = 0;
 
@@ -246,6 +248,101 @@ int process_command(char* command) { // Applies logic to the command read in by 
 		}
 	}
 
+	else if(strcmp(command, "myecho") == 0) { // If command is "myecho" then print the string following the command.
+		while(token != NULL) {
+			if(strcmp(token, "myecho") != 0) {
+				printf("%s ", token); 
+			}
+			token = strtok(NULL, delim);
+		}
+		printf("\n");	
+	}
+
+	else if(strcmp(command, "redirect") == 0) { // If command is "redirect" then redirect I/O.
+		while(token != NULL) {
+			if(strcmp(token, "redirect") != 0) {
+				if(strcmp(token, "-") == 0) {
+					int count = 0;
+					while(token != NULL) {
+						if(strcmp(token, "-") != 0) {
+							int newoutput = open(token, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);	
+							fflush(stdout);
+							dup2(newoutput, STDOUT_FILENO);
+						}
+						token = strtok(NULL, delim);
+						count++;
+					}
+					if(count == 1) {
+						fprintf(stderr, "usage: redirect input [output]\n");	
+					}		
+				}
+				else {
+					int count = 0;
+					while(token != NULL) {
+						if(count == 0) {
+							freopen(token, "r", stdin);
+							int newinput = open(token, O_RDONLY);
+							dup2(newinput, STDIN_FILENO);				
+						}
+						else {
+							int newoutput = open(token, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);	
+							fflush(stdout);
+							dup2(newoutput, STDOUT_FILENO);
+
+						}
+						token = strtok(NULL, delim);
+						count++;
+						}	
+				}
+			}
+			token = strtok(NULL, delim);
+		}
+	}
+
+	else if(strcmp(command, "pid") == 0) { // Print the pid of the process executing the shell.
+		int count = 0;
+
+		while(token != NULL) {
+			if(strcmp(token, "pid") != 0) {
+				pid_t parentpid = getppid();
+				printf("%d\n", parentpid);				
+			}
+			token = strtok(NULL, delim);
+			count++;
+		}
+		if(count == 1) {
+			pid_t pid = getpid();
+			printf("%d\n", pid);	
+		}
+	}
+
+	else if(strcmp(command, "fork") == 0) { // Create a child process with a fork() system call.
+		fflush(stdout);
+		pid_t pid = fork();
+		
+		if(pid == -1) {
+			perror("fork");
+		}
+		else if(pid == 0) {
+			
+		}
+		else {
+			waitpid(pid, NULL, 0);
+		}	
+	}
+
+	else if(strcmp(command, "exec") == 0) { // Execute program.
+		
+	}
+
+	else if(strcmp(command, "fg") == 0) { // Execute program in the foreground.
+		
+	}
+
+	else if(strcmp(command, "bg") == 0) { // Execute program in the background.
+		
+	}	
+
 	else {  // If the command is not in our list of commands then show following message.
 		printf("Unrecognized command:");
 		while(token != NULL) {
@@ -259,6 +356,7 @@ int process_command(char* command) { // Applies logic to the command read in by 
 }
 
 char command[4096];
+//int newfd;
 
 int main(int argc, char *argv[]) {
 	bool echo = false;
@@ -266,6 +364,11 @@ int main(int argc, char *argv[]) {
 	if(argc >= 2 && strcmp(argv[1], "--echo") == 0) {
 		echo = true;
 	}
+
+	/*if((argc >= 2) && ((newfd = open(argv[1], O_CREAT | O_TRUNC | O_WRONLY, 0644)) < 0)) {
+		perror(argv[1]);
+		exit(1);
+	}*/
 
 	while(1) {
 		print_prompt();
