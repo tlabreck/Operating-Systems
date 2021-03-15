@@ -324,7 +324,7 @@ int process_command(char* command) { // Applies logic to the command read in by 
 			perror("fork");
 		}
 		else if(pid == 0) {
-			
+			//do commands until child exits.	
 		}
 		else {
 			waitpid(pid, NULL, 0);
@@ -332,15 +332,80 @@ int process_command(char* command) { // Applies logic to the command read in by 
 	}
 
 	else if(strcmp(command, "exec") == 0) { // Execute program.
-		
+		while(token != NULL) {
+			if(strcmp(token, "exec") != 0) {
+				char *args[64];
+				int i = 0;
+				while(token != NULL) {
+					args[i] = token;
+					i++;
+					token = strtok(NULL, delim);
+				}
+				fflush(stdout);
+				if(execvp(args[0], args) == -1) {
+					perror("exec");
+				}
+			}
+			token = strtok(NULL, delim);		
+		}	
 	}
 
 	else if(strcmp(command, "fg") == 0) { // Execute program in the foreground.
+		fflush(stdout);
+		pid_t pid = fork();
 		
+		if(pid == -1) {
+			perror("fork");
+		}
+		else if(pid == 0) {
+			while(token != NULL) {
+				if(strcmp(token, "fg") != 0) {
+					char *args[64];
+					int i = 0;
+					while(token != NULL) {
+						args[i] = token;
+						i++;
+						token = strtok(NULL, delim);
+					}
+					fflush(stdout);
+					if(execvp(args[0], args) == -1) {
+						perror("fg");
+					}
+				}
+				token = strtok(NULL, delim);		
+			}		
+		}
+		else {
+			waitpid(pid, NULL, 0);
+		}	
+
 	}
 
 	else if(strcmp(command, "bg") == 0) { // Execute program in the background.
+		fflush(stdout);
+		pid_t pid = fork();
 		
+		if(pid == -1) {
+			perror("fork");
+		}
+		else if(pid == 0) {
+			while(token != NULL) {
+			if(strcmp(token, "bg") != 0) {
+				char *args[64];
+				int i = 0;
+				while(token != NULL) {
+					args[i] = token;
+					i++;
+					token = strtok(NULL, delim);
+				}
+				fflush(stdout);
+				if(execvp(args[0], args) == -1) {
+					perror("bg");
+				}
+			}
+			token = strtok(NULL, delim);		
+			}		
+		}	
 	}	
 
 	else {  // If the command is not in our list of commands then show following message.

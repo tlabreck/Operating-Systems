@@ -1,2 +1,0 @@
-@> myecho Bye bye.
-Bye bye.
