@@ -8,7 +8,17 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <sys/wait.h>
+#include <mqueue.h>
 
+#define MQUEUE_NAME "/myshell_tlabreck_mqueue"
+/*
+#define ERROR_CHECK(x) do { \
+	if ((intptr_t)x == (intptr_t) - 1) {
+		perror("myshell");
+		return 0;
+	}
+}while(0)
+*/
 int print_prompt() {  // Prints the prompt for the user.
 	printf("@> ");
 	return 1;
@@ -406,7 +416,34 @@ int process_command(char* command) { // Applies logic to the command read in by 
 			token = strtok(NULL, delim);		
 			}		
 		}	
-	}	
+	}
+
+	else if(strcmp(command, "pipe") == 0) {
+		int pipefd[2];
+		pipe(pipefd);
+		fflush(stdout);
+		pid_t pid = fork();
+		
+		if(pid == -1) {
+			perror("pipe");
+		}
+		else if(pid == 0) {
+			while(token != NULL) {
+
+				dup2(pipefd[0],0);
+				if(close(pipefd[1]) == -1) {
+					perror("pipe");
+				}
+			}
+			token = strtok(NULL, delim);
+		}
+		else {
+			dup2(pipefd[1],1);
+			if(close(pipefd[0]) == -1) {
+				perror("pipe");
+			}
+		}	
+	} 	
 
 	else {  // If the command is not in our list of commands then show following message.
 		printf("Unrecognized command:");
@@ -419,6 +456,20 @@ int process_command(char* command) { // Applies logic to the command read in by 
 	}
 	return 1;
 }
+/*
+int message_queue_create() {
+	struct mq_attr attr;
+	attr.mq_maxmsg = 10;
+	attr.mq_msgsize = 8192;
+
+	int oflags = O_CREAT | O_RDWR;
+	mode_t mode = S_IRWXU | S_IRWXG | S_IRWXO;
+	mq_open(MQUEUE_NAME, oflags, &attr);
+}
+
+int message_queue_delete() {
+	mq_unlink(MQUEUE_NAME);
+}*/
 
 char command[4096];
 //int newfd;
@@ -429,6 +480,12 @@ int main(int argc, char *argv[]) {
 	if(argc >= 2 && strcmp(argv[1], "--echo") == 0) {
 		echo = true;
 	}
+/*	if(argc >= 2 && strcmp(argv[1], "--init") == 0) {
+		message_queue_create();	
+	}
+	if(argc >= 2 && strcmp(argv[1], "--destroy") == 0) {
+		message_queue_delete();
+	}*/
 
 	/*if((argc >= 2) && ((newfd = open(argv[1], O_CREAT | O_TRUNC | O_WRONLY, 0644)) < 0)) {
 		perror(argv[1]);
